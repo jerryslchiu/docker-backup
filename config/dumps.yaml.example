@@ -1,0 +1,29 @@
+# Copy to /etc/docker-backup/dumps.yaml and edit.
+# Each entry maps a running container name (exact, or prefix*) to a dump type.
+#
+# Types: postgres | mysql | mariadb | mongo | redis | custom
+# You can also set the compose/container label backup.dump=<type> instead of listing it here.
+#
+# Unknown database containers are not dumped. The backup script warns; it does
+# not silently treat a live DB volume as consistent.
+
+dumps:
+  # - container: myproject-postgres-1
+  #   type: postgres
+  #   user: postgres          # default: POSTGRES_USER from the container, else postgres
+  #   database: all           # "all" => pg_dumpall; otherwise pg_dump -Fc that database
+
+  # - container: myproject-mariadb-1
+  #   type: mysql
+  #   user: root              # default: root
+  #   password_env: MYSQL_ROOT_PASSWORD
+
+  # - container: myproject-mongo-1
+  #   type: mongo
+
+  # - container: myproject-redis-1
+  #   type: redis
+
+  # - container: myproject-app-1
+  #   type: custom
+  #   command: docker exec myproject-app-1 /usr/local/bin/backup-to-stdout

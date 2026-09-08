@@ -1,0 +1,7 @@
+[Unit]
+Description=Log docker-backup failure
+After=docker-backup.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/logger -p user.err -t docker-backup "backup failed; see journalctl -u docker-backup.service"
