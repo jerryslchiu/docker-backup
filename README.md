@@ -1,31 +1,44 @@
-# Docker host backup (restic + systemd)
+# Docker host backup
 
-Encrypted, incremental backups of **Docker named volumes**, **bind-mount data**, and **database dumps** from an Ubuntu Docker host to a LAN NAS. The engine is [restic](https://restic.net/). This repo is host glue: mount check, dumps, freeze labels, a systemd timer, and a restore helper.
+Encrypted, incremental backups of Docker data on an Ubuntu host to a LAN NAS. [restic](https://restic.net/) stores the snapshots; this repo is the host glue — mount check, database dumps, freeze labels, a systemd timer, and a restore helper.
 
-Do not back up `/var/lib/docker` wholesale or Docker images. Recreate stacks from compose + registry pulls; restore **data**.
+Back up **data**, not the Docker engine. Recreate stacks from compose and registry pulls. Do not snapshot `/var/lib/docker` wholesale or Docker images.
 
+```mermaid
+flowchart TB
+  subgraph sources [What is collected]
+    volumes[Named volumes]
+    binds[Bind-mount data]
+    compose[Compose yaml and dotenv]
+    dumps[Database dumps]
+  end
+
+  subgraph host [Ubuntu Docker host]
+    timer[systemd timer 03:00]
+    script[backup.sh]
+    freeze[Stop backup.freeze containers]
+    restic[restic]
+    timer --> script
+    script --> dumps
+    script --> freeze
+    volumes --> restic
+    binds --> restic
+    compose --> restic
+    dumps --> restic
+    freeze --> restic
+  end
+
+  subgraph nas [NAS]
+    repo["/mnt/backup/restic-docker"]
+  end
+
+  restic -->|"encrypted incremental snapshot"| repo
 ```
-Ubuntu host                    NAS
------------                    ---
-volumes / bind mounts  \
-DB dumps (pg_dump …)   -->  backup.sh  -->  restic  -->  /mnt/backup/restic-docker
-compose yaml + .env    /
-```
-
-## Open-source pieces
-
-| Tool | Role |
-|---|---|
-| **restic** | Encrypted, deduplicated snapshots on the NAS mount |
-| This repo | `backup.sh`, `restore.sh`, dumps map, systemd timer |
-| Optional later | [Backrest](https://github.com/garethgeorge/backrest) UI on the **same** restic repo |
-
-Alternatives we did not use: [offen/docker-volume-backup](https://github.com/offen/docker-volume-backup) (tar archives, no restic dedup), Kopia, Borg/borgmatic (better over SSH than CIFS/NFS).
 
 ## What is backed up
 
 - Named volumes: `/var/lib/docker/volumes/<name>/_data`
-- Bind-mount paths listed in `BACKUP_BIND_PATHS`
+- Bind-mount paths in `BACKUP_BIND_PATHS`
 - Compose project dirs in `BACKUP_COMPOSE_PATHS` (yaml + `.env`)
 - Dumps under `/var/backups/docker-dumps/<container>/`
 
@@ -42,7 +55,9 @@ Excluded: `overlay2`, image layers, build cache, container writable layers.
 
 Map containers in `/etc/docker-backup/dumps.yaml` or set label `backup.dump=postgres` (or `mysql`, `mariadb`, `mongo`, `redis`). Unmapped database containers are **not** treated as consistent; the script warns.
 
-## Install (on the Ubuntu Docker host)
+## Install
+
+On the Ubuntu Docker host:
 
 1. Mount the NAS at `/mnt/backup` (CIFS shown; NFS also works):
 
@@ -71,7 +86,7 @@ Map containers in `/etc/docker-backup/dumps.yaml` or set label `backup.dump=post
 6. Enable the 03:00 timer: `sudo systemctl enable --now docker-backup.timer`
 7. Restore-test one small volume after the first success.
 
-`install.sh` installs `restic`, writes units, and generates a restic password if missing. It does **not** write NAS credentials.
+`install.sh` installs restic, writes units, and generates a restic password if missing. It does **not** write NAS credentials.
 
 ## Daily job
 
@@ -84,7 +99,7 @@ Optional: set `HEALTHCHECKS_URL` to a Healthchecks.io ping URL.
 ```bash
 sudo docker-restore snapshots
 sudo docker-restore restore --include /var/lib/docker/volumes/mydata/_data --target /tmp/restore
-# or inject into a named volume (stack must be stopped):
+# inject into a named volume (stack must be stopped):
 sudo docker-restore volume --volume mydata
 ```
 
@@ -96,6 +111,16 @@ Then:
 4. Start the stack and verify.
 
 Postgres custom-format dumps: `pg_restore -d DB file.dump`. `pg_dumpall` SQL: `psql -f file.sql`.
+
+```mermaid
+flowchart LR
+  snap[restic snapshot on NAS]
+  staging[Restore to staging or volume]
+  stack[Stop stack]
+  replay[Copy files or replay dump]
+  up[Start stack and verify]
+  snap --> staging --> stack --> replay --> up
+```
 
 ## Secrets (never commit)
 
