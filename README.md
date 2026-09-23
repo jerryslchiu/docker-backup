@@ -35,6 +35,10 @@ flowchart TB
   restic -->|"encrypted incremental snapshot"| repo
 ```
 
+
+
+
+
 ## What is backed up
 
 - Named volumes: `/var/lib/docker/volumes/<name>/_data`
@@ -46,12 +50,14 @@ Excluded: `overlay2`, image layers, build cache, container writable layers.
 
 ## Consistency
 
-| Data | Method |
-|---|---|
-| Postgres / MySQL / MariaDB / Mongo | `docker exec` dump, then restic the dump dir |
-| Redis | `redis-cli --rdb` (or equivalent) into the dump dir |
-| SQLite / single-file DBs | Label `backup.freeze=true` — stop, snapshot, start |
-| Media / config | Hot copy while running |
+
+| Data                               | Method                                              |
+| ---------------------------------- | --------------------------------------------------- |
+| Postgres / MySQL / MariaDB / Mongo | `docker exec` dump, then restic the dump dir        |
+| Redis                              | `redis-cli --rdb` (or equivalent) into the dump dir |
+| SQLite / single-file DBs           | Label `backup.freeze=true` — stop, snapshot, start  |
+| Media / config                     | Hot copy while running                              |
+
 
 Map containers in `/etc/docker-backup/dumps.yaml` or set label `backup.dump=postgres` (or `mysql`, `mariadb`, `mongo`, `redis`). Unmapped database containers are **not** treated as consistent; the script warns.
 
@@ -60,28 +66,16 @@ Map containers in `/etc/docker-backup/dumps.yaml` or set label `backup.dump=post
 On the Ubuntu Docker host:
 
 1. Mount the NAS at `/mnt/backup` (CIFS shown; NFS also works):
-
-   ```fstab
+  ```fstab
    //NAS_IP/share  /mnt/backup  cifs  credentials=/root/.backup-nas-credentials,uid=0,gid=0,file_mode=0600,dir_mode=0700,_netdev,x-systemd.automount  0  0
-   ```
-
-   `/root/.backup-nas-credentials`:
-
-   ```
-   username=backup
-   password=...
-   ```
-
-   `chmod 600 /root/.backup-nas-credentials`
-
+  ```
+   Copy [`config/backup-nas-credentials.example`](config/backup-nas-credentials.example) to `/root/.backup-nas-credentials`, put the real username and password on their own lines (no comments), then `chmod 600 /root/.backup-nas-credentials`.
 2. Copy this repo to the host and run:
-
-   ```bash
+  ```bash
    sudo ./scripts/install.sh
-   ```
-
+  ```
 3. Edit `/etc/docker-backup/backup.env` and `/etc/docker-backup/dumps.yaml`.
-4. Save the restic password (`/root/.restic-password`) somewhere offline. Without it, snapshots are unreadable.
+4. Save the restic password (`/root/.restic-password`) somewhere offline. See [`config/restic-password.example`](config/restic-password.example). Without this password, snapshots are unreadable.
 5. First run: `sudo systemctl start docker-backup.service`
 6. Enable the 03:00 timer: `sudo systemctl enable --now docker-backup.timer`
 7. Restore-test one small volume after the first success.
@@ -122,15 +116,29 @@ flowchart LR
   snap --> staging --> stack --> replay --> up
 ```
 
-## Secrets (never commit)
 
-- `/root/.restic-password` (mode 600)
-- `/root/.backup-nas-credentials` (mode 600)
-- Filled-in `backup.env` on the host
+
+
+
+## Secrets
+
+Live files stay on the host (mode 600). Templates are in `config/`:
+
+| Live file | Example |
+|---|---|
+| `/root/.restic-password` | [`config/restic-password.example`](config/restic-password.example) |
+| `/root/.backup-nas-credentials` | [`config/backup-nas-credentials.example`](config/backup-nas-credentials.example) |
+| `/etc/docker-backup/backup.env` | [`config/backup.env.example`](config/backup.env.example) |
+
+The live restic password file must be a single line (password only). The live CIFS credentials file must be `username=` / `password=` only. Do not commit filled-in copies.
+
+
 
 ## Layout
 
 - `config/backup.env.example`
+- `config/restic-password.example`
+- `config/backup-nas-credentials.example`
 - `config/dumps.yaml.example`
 - `config/fstab.snippet`
 - `scripts/common.sh`, `scripts/parse_dumps.py`
@@ -138,3 +146,4 @@ flowchart LR
 - `scripts/restore.sh` — list / restore / volume inject
 - `scripts/install.sh`
 - `systemd/docker-backup.service`, `docker-backup.timer`, `docker-backup-notify.service`
+

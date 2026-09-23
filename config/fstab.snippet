@@ -3,9 +3,8 @@
 # Then:  systemctl daemon-reload && mount /mnt/backup
 
 # --- CIFS / SMB (Synology, Windows share, OpenWrt Samba, etc.) ---
-# /root/.backup-nas-credentials must be mode 600 and contain:
-#   username=backup
-#   password=secret
+# /root/.backup-nas-credentials must be mode 600.
+# See config/backup-nas-credentials.example (username= / password= only, no comments).
 #
 # //NAS_IP/share  /mnt/backup  cifs  credentials=/root/.backup-nas-credentials,uid=0,gid=0,file_mode=0600,dir_mode=0700,_netdev,x-systemd.automount,x-systemd.idle-timeout=600  0  0
 

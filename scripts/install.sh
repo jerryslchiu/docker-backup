@@ -51,6 +51,8 @@ else
 fi
 
 install -m 0644 "$REPO_ROOT/config/fstab.snippet" "$CONF_DIR/fstab.snippet"
+install -m 0644 "$REPO_ROOT/config/restic-password.example" "$CONF_DIR/restic-password.example"
+install -m 0644 "$REPO_ROOT/config/backup-nas-credentials.example" "$CONF_DIR/backup-nas-credentials.example"
 install -m 0644 "$REPO_ROOT/systemd/docker-backup.service" "$UNIT_DIR/docker-backup.service"
 install -m 0644 "$REPO_ROOT/systemd/docker-backup.timer" "$UNIT_DIR/docker-backup.timer"
 install -m 0644 "$REPO_ROOT/systemd/docker-backup-notify.service" "$UNIT_DIR/docker-backup-notify.service"
@@ -82,7 +84,9 @@ systemctl daemon-reload
 echo
 echo "next steps:"
 echo "  1. Mount the NAS at /mnt/backup (see $CONF_DIR/fstab.snippet)."
+echo "     CIFS credentials template: $CONF_DIR/backup-nas-credentials.example -> /root/.backup-nas-credentials"
 echo "  2. Edit $CONF_DIR/backup.env and $CONF_DIR/dumps.yaml."
+echo "     Restic password template: $CONF_DIR/restic-password.example (or keep the generated /root/.restic-password)."
 echo "  3. sudo systemctl start docker-backup.service"
 echo "  4. sudo systemctl enable --now docker-backup.timer"
 echo "  5. Restore-test one small volume after the first success."

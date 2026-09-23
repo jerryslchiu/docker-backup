@@ -1,5 +1,8 @@
+# Live secrets — never commit filled-in copies
 *.env
+!.env.example
 !*.env.example
 .restic-password
-*credentials*
+.backup-nas-credentials
+backup-nas-credentials
 .DS_Store
